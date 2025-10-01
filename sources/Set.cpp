@@ -5,6 +5,10 @@
 #include <algorithm>
 #include <cassert>
 #include <limits>
+#include <iostream>
+#include <iomanip>
+#include <stack>
+#include <queue>
 
 template <typename Data>
 Set<Data>::Set()
@@ -25,7 +29,7 @@ template <typename Data>
 Set<Data>::Set(const Set<Data>& rhv)
     : root_(NULL)
 {
-    insert(rhv.begin(), rhv.end());
+    copyHelper(root_);
 }
 
 template <typename Data>
@@ -35,66 +39,14 @@ Set<Data>::~Set()
 }
 
 template <typename Data>
-typename Set<Data>::const_iterator
-Set<Data>::begin() const
+Set<Data>&
+Set<Data>::operator=(const Set& rhv)
 {
-    return const_iterator(getLeftMost(root_));
-}
-
-template <typename Data>
-typename Set<Data>::const_iterator
-Set<Data>::end() const
-{
-    return const_iterator(NULL);
-}
-
-template <typename Data>
-typename Set<Data>::iterator
-Set<Data>::begin()
-{
-    return iterator(getLeftMost(root_));
-}
-
-template <typename Data>
-typename Set<Data>::iterator
-Set<Data>::end()
-{
-    return iterator(NULL);
-}
-
-template <typename Data>
-void
-Set<Data>::clear()
-{
-    clearNode(root_);
-    root_ = NULL;
-}
-
-template <typename Data>
-bool
-Set<Data>::empty() const
-{
-    return NULL == root_;
-}
-
-template <typename Data>
-typename Set<Data>::size_type
-Set<Data>::size() const
-{
-    size_type i = 0;
-    const_iterator it = begin();
-    while (it != end()) {
-        ++i;
-        ++it;
+    if (this != &rhv) {
+        clear();
+        copyHelper(rhv.root_);
     }
-    return i;
-}
-
-template <typename Data>
-typename Set<Data>::size_type
-Set<Data>::max_size() const
-{
-    return std::numeric_limits<size_t>::max() / sizeof(Node);
+    return *this;
 }
 
 template <typename Data>
@@ -150,7 +102,7 @@ template <typename Data>
 bool
 Set<Data>::operator<=(const Set<Data>& rhv) const
 {
-    return !(*this > rhv);
+    return !(rhv < *this);
 }
 
 template <typename Data>
@@ -165,6 +117,16 @@ typename Set<Data>::iterator
 Set<Data>::insert(iterator it, const value_type& x)
 {
     return insertHelper(it, x).first;
+}
+
+template <typename Data>
+void
+Set<Data>::copyHelper(Node* root)
+{
+    if (NULL == root) return;
+    insert(root->data_);
+    copyHelper(root->left_);
+    copyHelper(root->right_);
 }
 
 template <typename Data>
@@ -191,6 +153,310 @@ Set<Data>::insertHelper(iterator it, const value_type& x)
     if (isAdded) balance(it);
     return std::make_pair(it, isAdded);
 }
+
+template <typename Data>
+void
+Set<Data>::erase(iterator position)
+{
+    iterator temp = getLeftMost(position.right());
+    temp.setLeft(position.left());
+    temp.setRight(position.right());
+    temp.setParent(position.parent());
+    position.right().setParent(temp);
+    position.left().setParent(temp);
+    position.parent().setRight(temp);
+    delete position;
+    balance(temp);
+}
+
+template <typename Data>
+typename Set<Data>::size_type 
+Set<Data>::erase(const key_type& key)
+{
+    iterator it = find(key);
+    if (it) {
+        erase(it);
+    }
+    return it ? 1 : 0;
+}
+
+template <typename Data>
+void
+Set<Data>::erase(iterator first, iterator last)
+{
+    while (first != last) {
+        erase(first);
+        ++first;
+    }
+}
+
+template <typename Data>
+typename Set<Data>::iterator
+Set<Data>::find(const key_type& key) const
+{
+    Node* current = root_;
+    while (NULL != current) {
+        if (key < current->data_) {
+            current = current->left_;
+        } else if (key > current->data_) {
+            current = current->right_;
+        } else {
+            return iterator(current);
+        }
+    }
+    return iterator(NULL);
+}
+
+template <typename Data>
+typename Set<Data>::size_type
+Set<Data>::count(const key_type& key) const
+{
+    return (iterator(NULL) == find(key)) ? 0 : 1;
+}
+
+template <typename Data>
+typename Set<Data>::iterator
+Set<Data>::lower_bound(const key_type& key) const
+{
+    Node* current = root_;
+    Node* result = NULL;
+
+    while (NULL != current) {
+        if (current->data_ > key) {
+            result = current;
+            current = current->left_;
+        } else {
+            current = current->right_;
+        }
+    }
+    return (NULL == result) ? end() : iterator(result);
+}
+
+template <typename Data>
+typename Set<Data>::iterator
+Set<Data>::upper_bound(const key_type& key) const
+{
+    Node* current = root_;
+    Node* result = NULL;
+
+    while (NULL != current) {
+        if (key < current->data) {
+            result = current;
+            current = current->left_;
+        } else {
+            current = current->right_;
+        }
+    }
+    return (NULL == result) ? end() : iterator(result);
+}
+
+template <typename Data>
+std::pair<typename Set<Data>::iterator, typename Set<Data>::iterator>
+Set<Data>::equal_range(const key_type& key) const
+{
+    return std::make_pair(lower_bound(key), upper_bound(key));
+}
+
+template <typename Data>
+void
+Set<Data>::swap(Set& rhv)
+{
+    std::swap(root_, rhv.root_);
+}
+
+template <typename Data>
+void
+Set<Data>::preOrder(Node* root)
+{
+    if (root != NULL) {
+        std::cout << root->data_ << ' ';
+        preOrder(root->left_);
+        preOrder(root->right_);
+    }
+}
+
+template <typename Data>
+void 
+Set<Data>::inOrder(Node* root)
+{
+    if (root != NULL) {
+        inOrder(root->left_);
+        std::cout << root->data_ << ' ';
+        inOrder(root->right_);
+    }
+}
+
+template <typename Data>
+void
+Set<Data>::postOrder(Node* root)
+{
+    if (root != NULL) {
+        postOrder(root->left_);
+        postOrder(root->right_);
+        std::cout << root->data_ << ' ';
+    }
+}
+
+template <typename Data>
+void
+Set<Data>::levelOrder(Node* root)
+{
+    if (root == NULL) return;
+
+    std::queue<Node*> q;
+    q.push(root);
+
+    while (!q.empty()) {
+        Node* current = q.front();
+        q.pop();
+
+        std::cout << current->data_ << ' ';
+
+        if (current->left_ != NULL)  q.push(current->left_);
+        if (current->right_ != NULL) q.push(current->right_);
+    }
+}
+
+template <typename Data>
+void
+Set<Data>::preOrderIterative(Node* root)
+{
+    if (root == NULL) return;
+
+    std::stack<Node*> stack;
+    Node* current = root;
+
+    while (current != NULL || !stack.empty()) {
+        while (current != NULL) {
+            
+            std::cout << current->data_ << ' ';
+            if (current->right_ != NULL) {
+                stack.push(current->right_);
+            }
+
+            current = current->left_;
+        }
+
+        if (!stack.empty()) {
+            current = stack.top();
+            stack.pop();
+        }
+    }
+}
+
+template <typename Data>
+void
+Set<Data>::inOrderIterative(Node* root)
+{
+    if (root == NULL) return;
+
+    std::stack<Node*> stack;
+    Node* current = root;
+
+    while (current != NULL || !stack.empty()) {
+        while (current != NULL) {
+            stack.push(current);
+            current = current->left_;
+        }
+
+        current = stack.top();
+        stack.pop();
+        std::cout << current->data_ << ' ';
+
+        current = current->right_;
+    }
+}
+
+template <typename Data>
+void
+Set<Data>::postOrderIterative(Node* root)
+{
+    if (root == NULL) return;
+
+    std::stack<Node*> stack;
+    Node* current = root;
+    Node* lastVisit = NULL;
+
+    while (current != NULL || !stack.empty()) {
+        while (current != NULL) {
+            stack.push(current);
+            current = current->left_;
+        }
+
+        Node* peekNode = stack.top();
+
+        if (peekNode->right_ != NULL && lastVisit != peekNode->right_) {
+            current = peekNode->right_;
+        } else {
+            std::cout << peekNode->data_ << ' ';
+            lastVisit = peekNode;
+            stack.pop();
+        }
+    }
+}
+
+template <typename Data>
+void
+Set<Data>::clear()
+{
+    clearNode(root_);
+    root_ = NULL;
+}
+
+template <typename Data>
+bool
+Set<Data>::empty() const
+{
+    return NULL == root_;
+}
+
+template <typename Data>
+typename Set<Data>::size_type
+Set<Data>::size() const
+{
+    size_type i = 0;
+    const_iterator it = begin();
+    while (it != end()) {
+        ++i;
+        ++it;
+    }
+    return i;
+}
+
+template <typename Data>
+typename Set<Data>::size_type
+Set<Data>::max_size() const
+{
+    return std::numeric_limits<size_t>::max() / sizeof(Node);
+}
+
+template <typename Data>
+typename Set<Data>::const_iterator
+Set<Data>::begin() const
+{
+    return const_iterator(getLeftMost(root_));
+}
+
+template <typename Data>
+typename Set<Data>::const_iterator
+Set<Data>::end() const
+{
+    return const_iterator(NULL);
+}
+
+template <typename Data>
+typename Set<Data>::iterator
+Set<Data>::begin()
+{
+    return iterator(getLeftMost(root_));
+}
+
+template <typename Data>
+typename Set<Data>::iterator
+Set<Data>::end()
+{
+    return iterator(NULL);
+}   
 
 template <typename Data>
 void
@@ -231,73 +497,41 @@ Set<Data>::goDownAndInsert(iterator& it, const value_type& x)
 }
 
 template <typename Data>
-typename Set<Data>::iterator
-Set<Data>::find(const key_type& key) const
+void
+Set<Data>::rotateRight(iterator& it)
 {
-    Node* current = root_;
-    while (NULL != current) {
-        if (key < current->data_) {
-            current = current->left_;
-        } else if (key > current->data_) {
-            current = current->right_;
-        } else {
-            return iterator(current);
-        }
-    }
-    return iterator(NULL);
+    iterator itParent = it.parent(), itRight = it.right();
+    const bool isRightParent = it.isLeftChild();
+    it.setRight(itRight.left());
+    if (itRight.left()) { itRight.left().setParent(it); }
+    itRight.setLeft(it);
+    it.setParent(itRight);
+    itRight.setParent(itParent);
+    if (itParent) {
+        isRightParent ? itParent.setLeft(itRight)
+                      : itParent.setRight(itRight);
+    } else { root_ = itRight.getPtr(); }
+    it = itRight;
 }
 
 template <typename Data>
-typename Set<Data>::size_type
-Set<Data>::count(const key_type& key) const
+void
+Set<Data>::rotateLeft(iterator& it)
 {
-    return (iterator(NULL) == find(key)) ? 0 : 1;
+    iterator itParent = it.parent(), itLeft = it.left();
+    const bool isLeftParent = it.isRightChild();
+    it.setLeft(itLeft.right());
+    if (itLeft.right()) { itLeft.right().setParent(it); }
+    itLeft.setRight(it);
+    it.setParent(itLeft);
+    itLeft.setParent(itParent);
+    if (itParent) {
+        isLeftParent ? itParent.setRight(itLeft)
+                     : itParent.setLeft(itLeft);
+    } else { root_ = itLeft.getPtr(); }
+    it = itLeft;
 }
 
-template <typename Data>
-typename Set<Data>::iterator
-Set<Data>::lower_bound(const key_type& key) const
-{
-    Node* current = root_;
-    Node* result = NULL;
-
-    while (NULL != current) {
-        if (!(current->data_ < key)) {
-            result = current;
-            current = current->left_;
-        } else {
-            current = current->right_;
-        }
-    }
-    return (NULL == result) ? iterator(NULL) : iterator(result);
-}
-
-template <typename Data>
-typename Set<Data>::iterator
-Set<Data>::upper_bound(const key_type& key) const
-{
-    Node* current = root_;
-    Node* result = NULL;
-
-    while (NULL != current) {
-        if (key < current->data) {
-            result = current;
-            current = current->left_;
-        } else {
-            current = current->right_;
-        }
-    }
-    return (NULL == result) ? iterator(NULL) : iterator(result);
-}
-
-template <typename Data>
-std::pair<typename Set<Data>::iterator, typename Set<Data>::iterator>
-Set<Data>::equal_range(const key_type& key) const
-{
-    return std::make_pair(lower_bound(key), upper_bound(key));
-}
-
-/*
 template <typename Data>
 void
 Set<Data>::balance(iterator& it)
@@ -316,23 +550,28 @@ Set<Data>::balance(iterator& it)
         rotateRight(it);
         return;
     }
-    balance(it.goParent()); 
+    balance(it.moveParent());
 }
-*/
+
+template <typename Data>
+bool
+Set<Data>::isRoot(const const_iterator& rhv) const
+{
+    return rhv == const_iterator(root_);
+}
 
 template <typename Data>
 typename Set<Data>::Node*
-Set<Data>::getRightMost(Node* ptr) const
+Set<Data>::getRightMost(Node* ptr)
 {
     if (NULL == ptr) return NULL;
     while (ptr->right_ != NULL) ptr = ptr->right_;
     return ptr;
 }
 
-
 template <typename Data>
 typename Set<Data>::Node*
-Set<Data>::getLeftMost(Node* ptr) const
+Set<Data>::getLeftMost(Node* ptr)
 {
     if (NULL == ptr) return NULL;
     while (ptr->left_ != NULL) ptr = ptr->left_;
@@ -349,14 +588,12 @@ Set<Data>::clearNode(Node* ptr)
     delete ptr;
 }
 
+///========================================CONST_ITERATOR===========
 
-/////////////////////              const_iterator
 template <typename Data>
 Set<Data>::const_iterator::const_iterator()
     : ptr_(NULL)
 {}
-
-
 
 template <typename Data>
 Set<Data>::const_iterator::const_iterator(const const_iterator& rhv)
@@ -399,25 +636,24 @@ Set<Data>::const_iterator::operator->() const
 
 template <typename Data>
 bool
-Set<Data>::const_iterator::isLeftParent() const
+Set<Data>::const_iterator::isRightChild() const
 {
     return ptr_->parent_ != NULL && ptr_->parent_->right_ == ptr_;
 }
 
 template <typename Data>
 bool
-Set<Data>::const_iterator::isRightParent() const
+Set<Data>::const_iterator::isLeftChild() const
 {
     return ptr_->parent_ != NULL && ptr_->parent_->left_ == ptr_;
 }
-
 
 template <typename Data>
 typename Set<Data>::const_iterator&
 Set<Data>::const_iterator::operator++()
 {
-    if (NULL == this->getPtr()->right_) { 
-        while (this->isLeftParent()) {
+    if (NULL == this->getPtr()->right_) {
+        while (this->isRightChild()) {
             this->moveParent();
         }
         this->moveParent();
@@ -432,7 +668,7 @@ typename Set<Data>::const_iterator&
 Set<Data>::const_iterator::operator--()
 {
     if (NULL == this->getPtr()->left_) { 
-        while (this->isRightParent()) {
+        while (this->isLeftChild()) {
             this->moveParent();
         }
         this->moveParent();
@@ -442,13 +678,11 @@ Set<Data>::const_iterator::operator--()
     return *this;
 }
 
-
-
 template <typename Data>
 typename Set<Data>::const_iterator
 Set<Data>::const_iterator::operator++(int)
 {
-    assert(ptr_ != NULL && ptr_ != getRightMost(root_));
+    assert(ptr_ != NULL);
     const_iterator temp = *this;
     ++(*this);
     return temp;
@@ -458,7 +692,7 @@ template <typename Data>
 typename Set<Data>::const_iterator
 Set<Data>::const_iterator::operator--(int)
 {
-    assert(ptr_ != NULL && ptr_ != getLeftMost(root_));
+    assert(ptr_ != NULL);
     const_iterator temp = *this;
     --(*this);
     return temp;
@@ -471,12 +705,21 @@ Set<Data>::const_iterator::operator==(const const_iterator& rhv) const
     return rhv.getPtr() == getPtr();
 }
 
-
 template <typename Data>
 bool
 Set<Data>::const_iterator::operator!=(const const_iterator& rhv) const
 {
     return !(*this == rhv);
+}
+
+template <typename Data>
+int
+Set<Data>::const_iterator::depth() const
+{
+    if (NULL == ptr_) { return 0; }
+    const int leftDepth = left().depth();
+    const int rightDepth = right().depth();
+    return std::max(leftDepth, rightDepth) + 1;
 }
 
 template <typename Data>
@@ -550,28 +793,6 @@ Set<Data>::const_iterator::createRight(const value_type& x)
     ptr_->right_ = new Node(x, ptr_);
 }
 
-
-template <typename Data>
-void
-Set<Data>::const_iterator::moveRight()
-{
-    ptr_ = ptr_->right_;
-}
-
-template <typename Data>
-void
-Set<Data>::const_iterator::moveLeft()
-{
-    ptr_ = ptr_->left_;
-}
-
-template <typename Data>
-void
-Set<Data>::const_iterator::moveParent()
-{
-    ptr_ = ptr_->parent_;
-}
-
 template <typename Data>
 bool
 Set<Data>::const_iterator::operator!() const
@@ -580,27 +801,57 @@ Set<Data>::const_iterator::operator!() const
 }
 
 template <typename Data>
-typename Set<Data>::const_iterator
-Set<Data>::const_iterator::firstLeftParent() const
+Set<Data>::const_iterator::operator bool() const
 {
-    if (!parent()) return const_iterator(NULL);
-    const_iterator nodeParent = parent();
-    if (nodeParent.right() == *this) return nodeParent;
-    return nodeParent.firstLeftParent();
+    return ptr_ != NULL;
 }
 
 template <typename Data>
-typename Set<Data>::const_iterator
-Set<Data>::const_iterator::firstRightParent() const
+typename Set<Data>::iterator
+Set<Data>::iterator::firstLeftParent() const
 {
-    if (!parent()) return const_iterator(NULL);
-    const_iterator nodeParent = parent();
-    if (nodeParent.left() == *this) return nodeParent;
-    return nodeParent.firstRightParent();
+    Node* current = this->getPtr();
+    while (current && current->parent_ && current->parent_->left_ == current) {
+        current = current->parent_;
+    }
+    return iterator(current ? current->parent_ : NULL);
 }
 
+template <typename Data>
+typename Set<Data>::iterator
+Set<Data>::iterator::firstRightParent() const
+{
+    Node* current = this->getPtr();
+    while (current && current->parent_ && current->parent_->right_ == current) {
+        current = current->parent_;
+    }
+    return iterator(current ? current->parent_ : NULL);
+}
 
-/////////////////////iterator
+template <typename Data>
+typename Set<Data>::const_iterator&
+Set<Data>::const_iterator::moveRight()
+{
+    setPtr(ptr_->right_);
+    return *this;
+}
+
+template <typename Data>
+typename Set<Data>::const_iterator&
+Set<Data>::const_iterator::moveLeft()
+{
+    ptr_ = ptr_->left_;
+    return *this;
+}
+template <typename Data>
+typename Set<Data>::const_iterator&
+Set<Data>::const_iterator::moveParent()
+{
+    ptr_ = ptr_->parent_;
+    return *this;
+}
+
+///=================================ITERATOR=================================
 
 template <typename Data>
 Set<Data>::iterator::iterator()
@@ -642,7 +893,6 @@ Set<Data>::iterator::operator==(const iterator& rhv) const
     return rhv.getPtr() == this->getPtr();
 }
 
-
 template <typename Data>
 bool
 Set<Data>::iterator::operator!=(const iterator& rhv) const
@@ -651,16 +901,33 @@ Set<Data>::iterator::operator!=(const iterator& rhv) const
 }
 
 template <typename Data>
-typename Set<Data>::iterator&
-Set<Data>::iterator::operator++()
+typename Set<Data>::iterator& 
+Set<Data>::iterator::operator=(const iterator& rhv)
 {
-    assert(this->ptr_ != NULL && this->ptr_ != getRightMost(root_));
-    if (this->ptr_->right_ != NULL) {
-        this->ptr_ = getLeftMost(this->ptr_->right_);
+    this->setPtr(rhv.getPtr());
+    return *this;
+}
+
+template <typename Data>
+int
+Set<Data>::iterator::balance() const
+{
+    const_iterator self(this->getPtr());
+    return self.left().depth() - self.right().depth();
+}
+
+template <typename Data>
+typename Set<Data>::iterator&
+Set<Data>::iterator::operator++()  
+{
+    if (NULL == this->getPtr()->right_) {
+        while (this->isRightChild()) {
+            this->moveParent();
+        }
+        this->moveParent();
         return *this;
     }
-    while (isLeftParent(this->ptr_->parent_)) this->ptr_ = this->ptr_->parent_;
-    this->ptr_ = this->ptr_->parent_;
+    this->setPtr(getLeftMost(this->getPtr()->right_));
     return *this;
 }
 
@@ -668,7 +935,6 @@ template <typename Data>
 typename Set<Data>::iterator
 Set<Data>::iterator::operator++(int)
 {
-    assert(this->ptr_ != NULL && this->ptr_ != getRightMost(root_));
     iterator temp = *this;
     ++(*this);
     return temp;
@@ -678,13 +944,14 @@ template <typename Data>
 typename Set<Data>::iterator&
 Set<Data>::iterator::operator--()
 {
-    assert(this->ptr_ != NULL && this->ptr_ != getLeftMost(root_));
-    if (this->ptr_->left_ != NULL) {
-        this->ptr_ = getRightMost(this->ptr_->left_);
+    if (NULL == this->getPtr()->left_) { 
+        while (this->isLeftChild()) {
+            this->moveParent();
+        }
+        this->moveParent();
         return *this;
     }
-    while (isRightParent(this->ptr_->parent_)) this->ptr_ = this->ptr_->parent_;
-    this->ptr_ = this->ptr_->parent_;
+    this->setPtr(getRightMost(this->getPtr()->left_));
     return *this;
 }
 
@@ -692,13 +959,264 @@ template <typename Data>
 typename Set<Data>::iterator
 Set<Data>::iterator::operator--(int)
 {
-    assert(this->ptr_ != NULL && this->ptr_ != getLeftMost(root_));
     iterator temp = *this;
     --(*this);
     return temp;
 }
 
+template <typename Data>
+typename Set<Data>::iterator&
+Set<Data>::iterator::moveRight()
+{
+    this->setPtr(this->ptr_->right_);
+    return *this;
+}
+
+template <typename Data>
+typename Set<Data>::iterator&
+Set<Data>::iterator::moveLeft()
+{
+    this->ptr_ = this->getPtr()->left_;
+    return *this;
+}
+
+template <typename Data>
+typename Set<Data>::iterator&
+Set<Data>::iterator::moveParent()
+{
+    this->ptr_ = this->getPtr()->parent_;
+    return *this;
+}
+
+template <typename Data>
+typename Set<Data>::iterator
+Set<Data>::iterator::parent()
+{
+    Node* temp = this->getPtr();
+    return NULL == temp ? iterator(temp) : iterator(temp->parent_);
+}
+
+template <typename Data>
+typename Set<Data>::iterator
+Set<Data>::iterator::left()
+{
+    Node* temp = this->getPtr();
+    return NULL == temp ? iterator(temp) : iterator(temp->left_);
+}
+
+template <typename Data>
+typename Set<Data>::iterator
+Set<Data>::iterator::right()
+{
+    Node* temp = this->getPtr();
+    return NULL == temp ? iterator(temp) : iterator(temp->right_);
+}
+
+template <typename Data>
+void 
+Set<Data>::outputTree(Node* ptr, std::ostream& out, const int totalSpaces) const
+{
+    if (NULL == ptr) { return; }
+    outputTree(ptr->right_, out, totalSpaces + 5);
+    out << std::setw(totalSpaces) << ptr->data_ << std::endl;
+    outputTree(ptr->left_, out, totalSpaces + 5);
+}
+
+template <typename Data>
+std::ostream&
+operator<<(std::ostream& out, const Set<Data>& rhv) 
+{
+    rhv.outputTree(rhv.root_, out);
+    return out;
+}
+
+/// ====================== CONST REVERSE ITERATOR ======================
+
+template <typename Data>
+Set<Data>::const_reverse_iterator::const_reverse_iterator()
+    : current_(const_iterator())
+{}
+
+template <typename Data>
+Set<Data>::const_reverse_iterator::const_reverse_iterator(const const_reverse_iterator& rhv)
+    : current_(rhv.current_)
+{}
+
+template <typename Data>
+Set<Data>::const_reverse_iterator::const_reverse_iterator(const_iterator base)
+    : current_(base)
+{}
+
+template <typename Data>
+Set<Data>::const_reverse_iterator::~const_reverse_iterator()
+{}
+
+template <typename Data>
+typename Set<Data>::const_reverse_iterator&
+Set<Data>::const_reverse_iterator::operator=(const const_reverse_iterator& rhv)
+{
+    if (this != &rhv) {
+        current_ = rhv.current_;
+    }
+    return *this;
+}
+
+template <typename Data>
+const typename Set<Data>::value_type&
+Set<Data>::const_reverse_iterator::operator*() const
+{
+    const_iterator temp = current_;
+    --temp; 
+    return *temp;
+}
+
+template <typename Data>
+const typename Set<Data>::value_type*
+Set<Data>::const_reverse_iterator::operator->() const
+{
+    return &(**this);
+}
+
+template <typename Data>
+typename Set<Data>::const_reverse_iterator&
+Set<Data>::const_reverse_iterator::operator++()
+{
+    --current_;
+    return *this;
+}
+
+template <typename Data>
+typename Set<Data>::const_reverse_iterator
+Set<Data>::const_reverse_iterator::operator++(int)
+{
+    const_reverse_iterator temp = *this;
+    --current_;
+    return temp;
+}
+
+template <typename Data>
+typename Set<Data>::const_reverse_iterator&
+Set<Data>::const_reverse_iterator::operator--()
+{
+    ++current_; 
+    return *this;
+}
+
+template <typename Data>
+typename Set<Data>::const_reverse_iterator
+Set<Data>::const_reverse_iterator::operator--(int)
+{
+    const_reverse_iterator temp = *this;
+    ++current_;
+    return temp;
+}
+
+template <typename Data>
+bool
+Set<Data>::const_reverse_iterator::operator==(const const_reverse_iterator& rhv) const
+{
+    return current_ == rhv.current_;
+}
+
+template <typename Data>
+bool
+Set<Data>::const_reverse_iterator::operator!=(const const_reverse_iterator& rhv) const
+{
+    return !(*this == rhv);
+}
+
+template <typename Data>
+typename Set<Data>::const_iterator
+Set<Data>::const_reverse_iterator::base() const
+{
+    return current_;
+}
+
+/// ======================REVERSE_ITERATOR======================
+
+template <typename Data>
+Set<Data>::reverse_iterator::reverse_iterator()
+    : const_reverse_iterator()
+{}
+
+template <typename Data>
+Set<Data>::reverse_iterator::reverse_iterator(const reverse_iterator& rhv)
+    : const_reverse_iterator(rhv.current_)
+{}
+
+template <typename Data>
+Set<Data>::reverse_iterator::reverse_iterator(iterator base)
+    : const_reverse_iterator(base)
+{}
+
+template <typename Data>
+Set<Data>::reverse_iterator::~reverse_iterator()
+{}
+
+template <typename Data>
+typename Set<Data>::reverse_iterator&
+Set<Data>::reverse_iterator::operator=(const reverse_iterator& rhv)
+{
+    this->current_ = rhv.current_;
+    return *this;
+}
+
+template <typename Data>
+typename Set<Data>::value_type&
+Set<Data>::reverse_iterator::operator*()
+{
+    iterator temp = this->current_;
+    --temp;
+    return *temp;
+}
+
+template <typename Data>
+typename Set<Data>::value_type*
+Set<Data>::reverse_iterator::operator->()
+{
+    return &(**this);
+}
+
+template <typename Data>
+typename Set<Data>::reverse_iterator&
+Set<Data>::reverse_iterator::operator++()
+{
+    --this->current_;
+    return *this;
+}
+
+template <typename Data>
+typename Set<Data>::reverse_iterator
+Set<Data>::reverse_iterator::operator++(int)
+{
+    reverse_iterator temp = *this;
+    --this->current_;
+    return temp;
+}
+
+template <typename Data>
+typename Set<Data>::reverse_iterator&
+Set<Data>::reverse_iterator::operator--()
+{
+    ++this->current_;
+    return *this;
+}
+
+template <typename Data>
+typename Set<Data>::reverse_iterator
+Set<Data>::reverse_iterator::operator--(int)
+{
+    reverse_iterator temp = *this;
+    ++this->current_;
+    return temp;
+}
+
+template <typename Data>
+typename Set<Data>::iterator
+Set<Data>::reverse_iterator::base() const
+{
+    return iterator(this->current_.getPtr());
+}
+
 #endif /// __SET_CPP__
-
-
 
