@@ -3,8 +3,6 @@
 
 #include <cstddef>
 #include <ostream>
-#include <stack>
-#include <queue>
 
 template <typename Data>
 class Set
@@ -215,7 +213,6 @@ private:
     void rotateLeft(iterator& it);
     void rotateRight(iterator& it);
     void goUp(iterator& it, const value_type& x);
-    void copyHelper(Node* root);
     static Node* getRightMost(Node* ptr);
     static Node* getLeftMost(Node* ptr);
 
@@ -225,6 +222,11 @@ private:
     std::pair<typename Set<Data>::iterator, bool>
     insertHelper(iterator it, const value_type& x);
     void clearNode(Node* ptr);
+    void copyHepler(Node* root);
+    void visit(Node* ptr) const;
+    Node*& nextPreOrder(Node*& ptr);
+    Node*& nextInOrder(Node*& ptr);
+    Node*& nextPostOrder(Node*& ptr);
 
 private:
     Node* root_;

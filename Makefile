@@ -4,7 +4,7 @@ bench=bench_$(progname)
 lib=lib$(progname).a
 shared_lib=$(progname).so
 CXX=g++
-CXXFLAGS=-Wall -Wextra -Werror -std=c++03 -I.
+CXXFLAGS=-Wall -Wextra -Werror -std=c++11 -I.
 
 debug:   CXXFLAGS+=-g3
 release: CXXFLAGS+=-g0 -DNDEBUG
