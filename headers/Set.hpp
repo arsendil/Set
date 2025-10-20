@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <ostream>
+#include <utility>
 
 template <typename Data>
 class Set
@@ -185,9 +186,14 @@ public:
 
     iterator  find(const key_type& key)                            const;
     size_type count(const key_type& key)                           const;
-    iterator  lower_bound(const key_type& key)                     const;
-    iterator  upper_bound(const key_type& key)                     const;
-    std::pair<iterator, iterator> equal_range(const key_type& key) const;
+    const_iterator  lower_bound(const key_type& key)               const;
+    const_iterator  upper_bound(const key_type& key)               const;
+    iterator lower_bound(const key_type& key);
+    iterator upper_bound(const key_type& key);
+    std::pair<typename Set<Data>::iterator, bool> boundHelper(iterator root, const key_type& key);
+    std::pair<typename Set<Data>::const_iterator, bool> boundHelper(const_iterator root, const key_type& key) const;
+    std::pair<iterator, iterator> equal_range(const key_type& key);
+    std::pair<const_iterator, const_iterator> equal_range(const key_type& key) const;
     void swap(Set& rhv);
 
     void preOrder(Node* root);
@@ -225,7 +231,8 @@ private:
     void copyHepler(Node* root);
     void visit(Node* ptr) const;
     Node*& nextPreOrder(Node*& ptr);
-    Node*& nextInOrder(Node*& ptr);
+    static Node*& nextInOrder(Node*& ptr);
+    static Node*& prevInOrder(Node*& ptr);
     Node*& nextPostOrder(Node*& ptr);
 
 private:
